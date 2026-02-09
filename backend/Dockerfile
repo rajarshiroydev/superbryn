@@ -24,7 +24,6 @@ RUN uv sync --frozen --no-dev
 # Copy application source
 COPY agent.py api.py db.py tools.py ./
 COPY start.sh ./
-COPY KMS/ ./KMS/
 
 RUN chmod +x start.sh
 
