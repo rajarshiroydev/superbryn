@@ -2,6 +2,9 @@
 
 echo "Starting SuperBryn backend..."
 
+# Limit inference processes to reduce memory — prevents OOM on Railway
+export LIVEKIT_AGENTS_NUM_IDLE_PROCESSES=0
+
 # Start the FastAPI server in the background
 echo "Starting FastAPI server on port ${PORT:-8080}..."
 uv run uvicorn api:app --host 0.0.0.0 --port "${PORT:-8080}" &

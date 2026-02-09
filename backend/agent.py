@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 import os
 from livekit import agents, rtc
-from livekit.agents import AgentServer, AgentSession, Agent, room_io
+from livekit.agents import AgentServer, AgentSession, Agent, room_io, WorkerOptions
 from livekit.plugins import noise_cancellation, silero, groq, tavus
 
 from tools import (
@@ -50,7 +50,12 @@ class Assistant(Agent):
         )
 
 
-server = AgentServer()
+server = AgentServer(
+    worker_options=WorkerOptions(
+        max_retry=2,
+        num_idle_processes=0,
+    ),
+)
 
 
 @server.rtc_session()
