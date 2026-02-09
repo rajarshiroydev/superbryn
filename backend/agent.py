@@ -3,7 +3,6 @@ import os
 from livekit import agents, rtc
 from livekit.agents import AgentServer, AgentSession, Agent, room_io
 from livekit.plugins import noise_cancellation, silero, groq, tavus
-from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
 from tools import (
     identify_user,
@@ -61,7 +60,6 @@ async def my_agent(ctx: agents.JobContext):
         llm=groq.LLM(model="moonshotai/kimi-k2-instruct-0905"),
         tts="cartesia/sonic-3:9626c31c-bec5-4cca-baa8-f8ba9e84c8bc",
         vad=silero.VAD.load(),
-        turn_detection=MultilingualModel(),
         userdata={"current_user": None, "phone_number": None, "tool_calls": []},
     )
 
