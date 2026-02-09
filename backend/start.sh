@@ -2,9 +2,6 @@
 
 echo "Starting SuperBryn backend..."
 
-# Limit inference processes to reduce memory — prevents OOM on Railway
-export LIVEKIT_AGENTS_NUM_IDLE_PROCESSES=0
-
 # Start the FastAPI server in the background
 echo "Starting FastAPI server on port ${PORT:-8080}..."
 uv run uvicorn api:app --host 0.0.0.0 --port "${PORT:-8080}" &
@@ -13,9 +10,9 @@ API_PID=$!
 # Give the API a moment to bind
 sleep 2
 
-# Start the LiveKit agent worker
+# Start the LiveKit agent worker (limit to 1 job at a time, 0 idle procs)
 echo "Starting LiveKit agent worker..."
-uv run python agent.py start &
+uv run python agent.py start --num-idle-processes 0 &
 AGENT_PID=$!
 
 # Trap signals to clean up both processes
