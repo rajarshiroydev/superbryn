@@ -10,6 +10,7 @@ import logging
 from datetime import datetime
 from typing import Optional
 from livekit.agents import function_tool, RunContext, get_job_context
+from groq import AsyncGroq
 
 from db import (
     get_user_by_phone,
@@ -22,9 +23,89 @@ from db import (
     mark_slot_available,
     cancel_appointment_db,
     update_appointment_db,
+    save_call_summary,
 )
 
 logger = logging.getLogger("super-bryn-tools")
+
+
+def _track(context: RunContext, action: str):
+    """Track a tool action in session userdata for call summary generation."""
+    context.session.userdata.setdefault("tool_calls", []).append(
+        {
+            "action": action,
+            "timestamp": datetime.now().isoformat(),
+        }
+    )
+
+
+async def _generate_call_summary(
+    tool_calls: list[dict],
+    phone_number: Optional[str],
+    user_name: Optional[str],
+) -> dict:
+    """Generate a structured call summary using Groq LLM."""
+    actions_text = (
+        "\n".join(f"- [{tc['timestamp']}] {tc['action']}" for tc in tool_calls)
+        or "No specific actions were taken during this call."
+    )
+
+    prompt = f"""You are summarizing a voice call between an AI appointment assistant and a user.
+
+User Info:
+- Name: {user_name or "Not provided"}
+- Phone: {phone_number or "Not provided"}
+
+Actions taken during the call:
+{actions_text}
+
+Generate a JSON summary with these exact keys:
+{{
+    "summary": "A concise 2-3 sentence natural language summary. MUST include the exact date and time for every appointment that was booked, cancelled, or modified. For modifications, include both the old and new date/time.",
+    "appointments": [
+        {{"action": "booked/cancelled/modified/retrieved", "date": "YYYY-MM-DD", "time": "HH:MM", "new_date": "YYYY-MM-DD or null", "new_time": "HH:MM or null", "details": "brief note"}}
+    ]
+}}
+
+CRITICAL: The "summary" field MUST explicitly mention the specific date and time for every booking, cancellation, and modification. Never say vague things like 'next day' or 'an appointment' without the exact date (e.g. 2026-02-10) and time (e.g. 14:00).
+
+Return ONLY valid JSON, no markdown fences, no extra text."""
+
+    try:
+        client = AsyncGroq()
+        response = await client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2,
+            max_tokens=500,
+        )
+        content = response.choices[0].message.content.strip()
+
+        # Strip markdown code fences if the model wrapped its response
+        if content.startswith("```"):
+            content = content.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+
+        return json.loads(content)
+    except Exception as e:
+        logger.warning(f"LLM summary generation failed, using fallback: {e}")
+        # Fallback: build a basic summary from tool calls data
+        appointment_actions = [
+            tc["action"]
+            for tc in tool_calls
+            if any(
+                kw in tc["action"].lower() for kw in ["booked", "cancelled", "modified"]
+            )
+        ]
+        return {
+            "summary": (
+                f"Call with {user_name or 'user'} ({phone_number or 'unknown'}). "
+                f"{len(tool_calls)} action(s) performed during the call."
+            ),
+            "appointments": [
+                {"action": a, "date": "", "time": "", "details": a}
+                for a in appointment_actions
+            ],
+        }
 
 
 def _friendly_date(date_str: str) -> str:
@@ -84,6 +165,7 @@ async def identify_user(
         context.session.userdata["current_user"] = user
         context.session.userdata["phone_number"] = normalized
         name = user.get("name", "")
+        _track(context, f"Identified existing user: {name or normalized}")
         if name:
             return (
                 f"User identified successfully. Name: {name}, Phone: {normalized}. "
@@ -99,6 +181,7 @@ async def identify_user(
         new_user = await create_user(normalized)
         context.session.userdata["current_user"] = new_user
         context.session.userdata["phone_number"] = normalized
+        _track(context, f"Created new user account for {normalized}")
         return (
             f"No existing user found for {normalized}. A new account has been created. "
             "Ask the user how you can help them."
@@ -133,6 +216,9 @@ async def fetch_slots(
         d = slot["date"]
         t = slot["time"]
         grouped.setdefault(d, []).append(t)
+
+    total = sum(len(v) for v in grouped.values())
+    _track(context, f"Fetched {total} available slot(s) for {date or 'all dates'}")
 
     if date:
         return json.dumps({"date": date, "available_times": grouped.get(date, [])})
@@ -184,6 +270,8 @@ async def book_appointment(
     # Mark the slot as booked in the slots table
     await mark_slot_booked(date, time)
 
+    _track(context, f"Booked appointment on {date} at {time}")
+
     # Force the agent to speak the confirmation aloud
     await context.session.say(
         f"Your appointment on {_friendly_date(date)} at {_friendly_time(time)} has been booked successfully. Is there anything I can help you with?",
@@ -222,6 +310,8 @@ async def retrieve_appointments(
             f"No appointments found{filter_text} for this user. "
             "Let them know and ask if they'd like to book one."
         )
+
+    _track(context, f"Retrieved {len(appointments)} appointment(s)")
 
     # Format appointments for the LLM to read out
     results = []
@@ -272,6 +362,8 @@ async def cancel_appointment(
 
     # Free up the slot so others can book it
     await mark_slot_available(date, time)
+
+    _track(context, f"Cancelled appointment on {date} at {time}")
 
     # Force the agent to speak the confirmation aloud
     await context.session.say(
@@ -334,6 +426,11 @@ async def modify_appointment(
     await mark_slot_available(old_date, old_time)
     await mark_slot_booked(new_date, new_time)
 
+    _track(
+        context,
+        f"Modified appointment from {old_date} {old_time} to {new_date} {new_time}",
+    )
+
     # Force the agent to speak the confirmation aloud
     await context.session.say(
         f"Your appointment has been moved from {_friendly_date(old_date)} at {_friendly_time(old_time)} to {_friendly_date(new_date)} at {_friendly_time(new_time)}.",
@@ -352,22 +449,92 @@ async def end_conversation(
     context: RunContext,
     confirm: bool = True,
 ):
-    """End the conversation and disconnect the call.
+    """End the conversation and disconnect the call. Generates a summary of the
+    conversation before disconnecting.
     Call this when the user says goodbye, thanks and leaves, or explicitly asks to end the call.
     Do not call this unless the user clearly wants to stop the conversation.
 
     Args:
         confirm: Always pass True when calling this tool.
     """
+    phone_number = context.session.userdata.get("phone_number")
+    user = context.session.userdata.get("current_user")
+    user_name = user.get("name") if user and isinstance(user, dict) else None
+    tool_calls = context.session.userdata.get("tool_calls", [])
+
+    # --- Generate call summary ---
+    summary_data = await _generate_call_summary(tool_calls, phone_number, user_name)
+    summary_data["timestamp"] = datetime.now().isoformat()
+    summary_data["phone_number"] = phone_number
+    summary_data["user_name"] = user_name
+
+    # --- Build full summary with appointment details for DB ---
+    summary_text = summary_data.get("summary", "No summary available.")
+    appointments = summary_data.get("appointments", [])
+
+    full_parts = [summary_text]
+    if appointments:
+        appt_lines = []
+        for appt in appointments:
+            action = appt.get("action", "")
+            date = appt.get("date", "")
+            time_val = appt.get("time", "")
+            new_date = appt.get("new_date")
+            new_time = appt.get("new_time")
+            details = appt.get("details", "")
+            line = f"{action.title()}"
+            if date:
+                line += f" on {date}"
+            if time_val:
+                line += f" at {time_val}"
+            if new_date and new_time:
+                line += f" -> moved to {new_date} at {new_time}"
+            if details:
+                line += f" ({details})"
+            appt_lines.append(line)
+        full_parts.append("Appointments: " + "; ".join(appt_lines))
+
+    full_summary = " | ".join(full_parts)
+
+    # --- Save summary to database ---
+    try:
+        await save_call_summary(
+            phone_number=phone_number,
+            summary=full_summary,
+        )
+        logger.info("Call summary saved to database")
+    except Exception as e:
+        logger.error(f"Failed to save call summary to DB: {e}")
+
+    # --- Publish summary to the room so the frontend can display it ---
+    try:
+        job_ctx = get_job_context()
+        payload = json.dumps(
+            {
+                "type": "call_summary",
+                **summary_data,
+            }
+        ).encode("utf-8")
+        await job_ctx.room.local_participant.publish_data(
+            payload=payload,
+            topic="call_summary",
+            reliable=True,
+        )
+        logger.info("Published call summary to room")
+    except Exception as e:
+        logger.error(f"Failed to publish call summary to room: {e}")
+
+    # --- Say goodbye (give frontend a moment to render summary) ---
     await context.session.say(
+        "I've prepared a summary of our conversation which you can see on your screen. "
         "Thank you for calling. Have a great day! Goodbye.",
         allow_interruptions=False,
     )
 
-    # Give TTS time to finish speaking before disconnecting
-    await asyncio.sleep(4)
+    # Give TTS time to finish and frontend time to display the summary
+    await asyncio.sleep(5)
 
-    # Disconnect all participants from the room
+    # --- Disconnect ---
     try:
         job_ctx = get_job_context()
         await job_ctx.room.disconnect()

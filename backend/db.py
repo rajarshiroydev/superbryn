@@ -279,6 +279,34 @@ async def update_appointment_db(
     except Exception as e:
         logger.error(f"Error modifying appointment for {phone_number}: {e}")
         raise
+
+
+async def save_call_summary(
+    phone_number: Optional[str],
+    summary: str,
+) -> Optional[dict]:
+    """
+    Save a call summary to the database.
+
+    Args:
+        phone_number: The user's phone number (or None if not identified).
+        summary: Natural language summary of the conversation.
+
+
+    Returns the created record dict, or None if save failed.
+    """
+    try:
+        supabase = get_supabase()
+        data = {
+            "phone_number": phone_number or "unknown",
+            "summary": summary,
+        }
+        result = supabase.table("call_summaries").insert(data).execute()
+        if result.data and len(result.data) > 0:
+            logger.info(f"Saved call summary for {phone_number}")
+            return dict(result.data[0])  # type: ignore[arg-type]
+        logger.warning("No data returned when saving call summary")
+        return None
     except Exception as e:
-        logger.error(f"Error marking slot {date} {time} as booked: {e}")
-        raise
+        logger.error(f"Error saving call summary: {e}")
+        return None

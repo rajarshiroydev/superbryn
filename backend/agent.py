@@ -37,7 +37,8 @@ class Assistant(Agent):
             - Present appointment details conversationally (e.g. 'You have an appointment on Monday the 9th at 9 AM').
             - To cancel, first retrieve their appointments, ask which one, then immediately call cancel_appointment.
             - To modify, first retrieve their appointments, ask which one and the new desired slot, then immediately call modify_appointment.
-            - When the user says goodbye or wants to end the call, use end_conversation to disconnect.""",
+            - When the user says goodbye or wants to end the call, use end_conversation to disconnect. This will automatically generate a conversation summary, save it, and send it to the user's screen before hanging up.
+            - Do NOT try to summarize the call yourself. The end_conversation tool handles the entire summary process automatically.""",
             tools=[
                 identify_user,
                 fetch_slots,
@@ -61,7 +62,7 @@ async def my_agent(ctx: agents.JobContext):
         tts="cartesia/sonic-3:9626c31c-bec5-4cca-baa8-f8ba9e84c8bc",
         vad=silero.VAD.load(),
         turn_detection=MultilingualModel(),
-        userdata={"current_user": None, "phone_number": None},
+        userdata={"current_user": None, "phone_number": None, "tool_calls": []},
     )
 
     avatar = tavus.AvatarSession(
