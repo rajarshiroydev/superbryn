@@ -968,6 +968,9 @@ openai = [
 silero = [
     { name = "livekit-plugins-silero" },
 ]
+tavus = [
+    { name = "livekit-plugins-tavus" },
+]
 turn-detector = [
     { name = "livekit-plugins-turn-detector" },
 ]
@@ -1069,6 +1072,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/1b/3c/c8006dc2e5526c3b5583a2d80dc8340ec4f2126e7b0d5bf0781b12867bde/livekit_plugins_silero-1.4.1.tar.gz", hash = "sha256:f82326e2c52363e3c38ce06ed67e9b422ccc27ce228328835c6784355a2b561c", size = 1955647, upload-time = "2026-02-06T21:38:34.225Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/13/fb/1095e28bade2826ed69c3cec13c4ecd0357f40605e281b1476d1d10b8728/livekit_plugins_silero-1.4.1-py3-none-any.whl", hash = "sha256:0f5748f4037b6f31e1c12fa3cfb9416d36276f7a99994ad3f98926c6f2d7bfc9", size = 3903690, upload-time = "2026-02-06T21:38:32.758Z" },
+]
+
+[[package]]
+name = "livekit-plugins-tavus"
+version = "1.4.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "livekit-agents" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/38/95/7aa101cd9d7a8a35367c8604b85497febc72b42beab077f55a70810d24b5/livekit_plugins_tavus-1.4.1.tar.gz", hash = "sha256:ac79a0475f63f8dfd6986a278024f80cc9af212b36d4475c2be336e6ae98f0bf", size = 5568, upload-time = "2026-02-06T21:38:48.468Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/87/3c/69456ae06ff4e44c6192f7b3e4d57475be14ee7a36315fafd71d7daee4bb/livekit_plugins_tavus-1.4.1-py3-none-any.whl", hash = "sha256:d8a77eefc31196bc50aafd927c1311135990e768f44cb6f9909d610bccfa8f68", size = 6047, upload-time = "2026-02-06T21:38:47.606Z" },
 ]
 
 [[package]]
@@ -2526,7 +2541,7 @@ name = "super-bryn"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
-    { name = "livekit-agents", extra = ["groq", "mcp", "silero", "turn-detector"] },
+    { name = "livekit-agents", extra = ["groq", "mcp", "silero", "tavus", "turn-detector"] },
     { name = "livekit-plugins-groq" },
     { name = "livekit-plugins-noise-cancellation" },
     { name = "onnxruntime" },
@@ -2536,7 +2551,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "livekit-agents", extras = ["groq", "mcp", "silero", "turn-detector"], specifier = "~=1.3" },
+    { name = "livekit-agents", extras = ["groq", "mcp", "silero", "tavus", "turn-detector"], specifier = "~=1.3" },
     { name = "livekit-plugins-groq", specifier = ">=1.4.1" },
     { name = "livekit-plugins-noise-cancellation", specifier = "~=0.2" },
     { name = "onnxruntime", specifier = "<1.19.0" },

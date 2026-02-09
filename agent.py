@@ -1,8 +1,8 @@
 from dotenv import load_dotenv
-
+import os
 from livekit import agents, rtc
 from livekit.agents import AgentServer, AgentSession, Agent, room_io
-from livekit.plugins import noise_cancellation, silero, groq
+from livekit.plugins import noise_cancellation, silero, groq, tavus
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
 from tools import (
@@ -63,6 +63,13 @@ async def my_agent(ctx: agents.JobContext):
         turn_detection=MultilingualModel(),
         userdata={"current_user": None, "phone_number": None},
     )
+
+    avatar = tavus.AvatarSession(
+        replica_id=os.getenv("TAVUS_REPLICA_ID") or "",
+        persona_id=os.getenv("TAVUS_PERSONA_ID") or "",
+    )
+
+    await avatar.start(session, room=ctx.room)
 
     await session.start(
         room=ctx.room,
