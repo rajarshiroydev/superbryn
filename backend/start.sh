@@ -10,9 +10,9 @@ API_PID=$!
 # Give the API a moment to bind
 sleep 2
 
-# Start the LiveKit agent worker (limit to 1 job at a time, 0 idle procs)
+# Start the LiveKit agent worker
 echo "Starting LiveKit agent worker..."
-uv run python agent.py start --num-idle-processes 0 &
+uv run python agent.py start &
 AGENT_PID=$!
 
 # Trap signals to clean up both processes
