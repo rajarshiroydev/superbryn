@@ -1,0 +1,107 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------------------------------------------------------- */
+/* Base                                                       */
+/* ---------------------------------------------------------- */
+@layer base {
+  html {
+    @apply bg-obsidian;
+  }
+
+  body {
+    @apply bg-obsidian text-white;
+  }
+}
+
+/* ---------------------------------------------------------- */
+/* Grain noise overlay                                        */
+/* ---------------------------------------------------------- */
+.grain {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+}
+
+.grain::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.7' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
+
+/* ---------------------------------------------------------- */
+/* Custom scrollbar                                           */
+/* ---------------------------------------------------------- */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.14);
+}
+
+/* ---------------------------------------------------------- */
+/* LiveKit video overrides                                    */
+/* ---------------------------------------------------------- */
+.lk-participant-media-video {
+  object-fit: cover !important;
+  border-radius: 0 !important;
+}
+
+/* ---------------------------------------------------------- */
+/* Utility classes                                            */
+/* ---------------------------------------------------------- */
+@layer utilities {
+  .glass {
+    @apply bg-white/[0.04] backdrop-blur-xl border border-white/[0.06];
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* ---------------------------------------------------------- */
+/* Animations                                                 */
+/* ---------------------------------------------------------- */
+@keyframes speaking-ring {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(245, 158, 11, 0);
+  }
+}
+
+.animate-speaking-ring {
+  animation: speaking-ring 2s ease-in-out infinite;
+}
+
+@keyframes subtle-rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-subtle-rotate {
+  animation: subtle-rotate 20s linear infinite;
+}
