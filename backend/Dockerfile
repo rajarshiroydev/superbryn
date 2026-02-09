@@ -27,6 +27,9 @@ COPY start.sh ./
 
 RUN chmod +x start.sh
 
+# Pre-download model files (Silero VAD, turn-detector ONNX, etc.)
+RUN uv run agent.py download-files
+
 # Railway injects PORT env var (default 8080 for the FastAPI server)
 EXPOSE 8080
 
