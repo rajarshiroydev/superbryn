@@ -60,6 +60,9 @@ server = AgentServer(num_idle_processes=0)
 async def my_agent(ctx: agents.JobContext):
     logger.info("Agent job received — setting up session...")
 
+    await ctx.connect()
+    logger.info("Connected to room, local participant ready")
+
     cartesia_key = os.getenv("CARTESIA_API_KEY")
     if not cartesia_key:
         logger.error("CARTESIA_API_KEY is not set!")
