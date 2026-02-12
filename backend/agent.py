@@ -18,6 +18,7 @@ from tools import (
 load_dotenv()
 
 logger = logging.getLogger("super-bryn-agent")
+AGENT_NAME = "super-bryn-agent"
 
 
 class Assistant(Agent):
@@ -56,7 +57,7 @@ class Assistant(Agent):
 server = AgentServer(num_idle_processes=0)
 
 
-@server.rtc_session()
+@server.rtc_session(agent_name=AGENT_NAME)
 async def my_agent(ctx: agents.JobContext):
     logger.info("Agent job received — setting up session...")
 
