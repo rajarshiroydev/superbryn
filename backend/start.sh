@@ -12,7 +12,7 @@ sleep 2
 
 # Start the LiveKit agent worker
 echo "Starting LiveKit agent worker..."
-uv run agent.py start &
+uv run python agent.py start &
 AGENT_PID=$!
 
 # Trap signals to clean up both processes

@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from livekit.api import AccessToken, VideoGrants, RoomConfiguration, RoomAgentDispatch
+from livekit.api import AccessToken, VideoGrants
 
 from db import (
     get_user_by_phone,
@@ -146,7 +146,6 @@ async def generate_token(req: TokenRequest):
                 room=req.room_name,
             )
         )
-        .with_room_config(RoomConfiguration(agents=[RoomAgentDispatch(agent_name="")]))
     )
 
     return TokenResponse(
