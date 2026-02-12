@@ -144,6 +144,7 @@ async def generate_token(req: TokenRequest):
             VideoGrants(
                 room_join=True,
                 room=req.room_name,
+                agent=True,
             )
         )
     )
