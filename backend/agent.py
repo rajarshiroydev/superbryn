@@ -53,7 +53,7 @@ class Assistant(Agent):
         )
 
 
-server = AgentServer(num_idle_processes=0)
+server = AgentServer(num_idle_processes=1)
 
 
 @server.rtc_session()
