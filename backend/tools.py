@@ -373,7 +373,7 @@ async def cancel_appointment(
     context: RunContext,
     date: str,
     time: str,
-) -> str:
+):
     """Cancel a booked appointment for the identified user.
     The user must be identified first via identify_user.
     Call this immediately once the user indicates which appointment to cancel. Do not ask for confirmation before calling.
@@ -411,11 +411,7 @@ async def cancel_appointment(
         allow_interruptions=False,
     )
 
-    return (
-        f"The appointment on {date} at {time} has been cancelled successfully. "
-        "The confirmation has already been spoken to the user. "
-        "Ask if there's anything else you can help with."
-    )
+    return None
 
 
 @function_tool()
@@ -425,7 +421,7 @@ async def modify_appointment(
     old_time: str,
     new_date: str,
     new_time: str,
-) -> str:
+):
     """Modify an existing appointment by changing its date and/or time.
     The user must be identified first via identify_user.
     Call this immediately once the user provides the old and new slot. Do not ask for confirmation before calling.
@@ -478,11 +474,7 @@ async def modify_appointment(
         allow_interruptions=False,
     )
 
-    return (
-        f"Appointment has been moved from {old_date} at {old_time} to {new_date} at {new_time}. "
-        "The confirmation has already been spoken to the user. "
-        "Ask if there's anything else you can help with."
-    )
+    return None
 
 
 @function_tool()
