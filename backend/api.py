@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from livekit.api import AccessToken, VideoGrants
+from livekit.api import AccessToken, VideoGrants, RoomConfiguration, RoomAgentDispatch
 
 from db import (
     get_user_by_phone,
@@ -136,6 +136,9 @@ async def generate_token(req: TokenRequest):
             status_code=500, detail="LiveKit credentials not configured on server."
         )
 
+    room_config = RoomConfiguration()
+    room_config.agents.append(RoomAgentDispatch())
+
     token = (
         AccessToken(api_key, api_secret)
         .with_identity(req.participant_name)
@@ -146,6 +149,7 @@ async def generate_token(req: TokenRequest):
                 room=req.room_name,
             )
         )
+        .with_room_config(room_config)
     )
 
     return TokenResponse(
