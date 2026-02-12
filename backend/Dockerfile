@@ -1,5 +1,7 @@
 FROM python:3.12-slim
 
+ENV PYTHONUNBUFFERED=1
+
 # Install system dependencies required by livekit/onnxruntime/noise-cancellation
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -8,6 +10,7 @@ RUN apt-get update && \
         libffi-dev \
         libssl-dev \
         curl \
+        ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv (fast Python package manager)

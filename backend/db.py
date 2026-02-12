@@ -19,10 +19,14 @@ def get_supabase() -> Client:
         url = os.environ.get("SUPABASE_URL")
         key = os.environ.get("SUPABASE_KEY")
         if not url or not key:
-            raise RuntimeError(
-                "SUPABASE_URL and SUPABASE_KEY environment variables must be set."
-            )
-        _supabase_client = create_client(url, key)
+            msg = "Missing SUPABASE_URL or SUPABASE_KEY environment variables."
+            logger.critical(msg)
+            raise RuntimeError(msg)
+        try:
+            _supabase_client = create_client(url, key)
+        except Exception as e:
+            logger.critical(f"Failed to initialize Supabase client: {e}")
+            raise
     return _supabase_client
 
 
