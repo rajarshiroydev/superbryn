@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 import os
 from livekit import agents, rtc
 from livekit.agents import AgentServer, AgentSession, Agent, room_io
-from livekit.plugins import noise_cancellation, silero, groq, tavus
+from livekit.plugins import noise_cancellation, silero, groq, tavus, deepgram, cartesia
 
 from tools import (
     identify_user,
@@ -56,9 +56,13 @@ server = AgentServer(num_idle_processes=0)
 @server.rtc_session()
 async def my_agent(ctx: agents.JobContext):
     session = AgentSession(
-        stt="deepgram/nova-3:multi",
+        stt=groq.STT(model="whisper-large-v3-turbo", language="en"),
         llm=groq.LLM(model="moonshotai/kimi-k2-instruct-0905"),
-        tts="cartesia/sonic-3:9626c31c-bec5-4cca-baa8-f8ba9e84c8bc",
+        tts=cartesia.TTS(
+            model="sonic-2",
+            voice="9626c31c-bec5-4cca-baa8-f8ba9e84c8bc",
+            api_key=os.getenv("CARTESIA_API_KEY"),
+        ),
         vad=silero.VAD.load(),
         userdata={"current_user": None, "phone_number": None, "tool_calls": []},
     )

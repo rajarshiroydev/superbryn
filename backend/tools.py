@@ -29,14 +29,32 @@ from db import (
 logger = logging.getLogger("super-bryn-tools")
 
 
-def _track(context: RunContext, action: str):
-    """Track a tool action in session userdata for call summary generation."""
+async def _track(context: RunContext, action: str, tool_name: str = ""):
+    """Track a tool action in session userdata and publish to the room for frontend display."""
     context.session.userdata.setdefault("tool_calls", []).append(
         {
             "action": action,
             "timestamp": datetime.now().isoformat(),
         }
     )
+    # Publish to room so the frontend can display tool-call events in real time
+    try:
+        job_ctx = get_job_context()
+        payload = json.dumps(
+            {
+                "type": "tool_call",
+                "tool": tool_name,
+                "action": action,
+                "timestamp": datetime.now().isoformat(),
+            }
+        ).encode("utf-8")
+        await job_ctx.room.local_participant.publish_data(
+            payload=payload,
+            topic="tool_call",
+            reliable=True,
+        )
+    except Exception as e:
+        logger.warning(f"Failed to publish tool call event: {e}")
 
 
 async def _generate_call_summary(
@@ -165,7 +183,11 @@ async def identify_user(
         context.session.userdata["current_user"] = user
         context.session.userdata["phone_number"] = normalized
         name = user.get("name", "")
-        _track(context, f"Identified existing user: {name or normalized}")
+        await _track(
+            context,
+            f"Identified existing user: {name or normalized}",
+            tool_name="identify_user",
+        )
         if name:
             return (
                 f"User identified successfully. Name: {name}, Phone: {normalized}. "
@@ -181,7 +203,11 @@ async def identify_user(
         new_user = await create_user(normalized)
         context.session.userdata["current_user"] = new_user
         context.session.userdata["phone_number"] = normalized
-        _track(context, f"Created new user account for {normalized}")
+        await _track(
+            context,
+            f"Created new user account for {normalized}",
+            tool_name="identify_user",
+        )
         return (
             f"No existing user found for {normalized}. A new account has been created. "
             "Ask the user how you can help them."
@@ -218,7 +244,11 @@ async def fetch_slots(
         grouped.setdefault(d, []).append(t)
 
     total = sum(len(v) for v in grouped.values())
-    _track(context, f"Fetched {total} available slot(s) for {date or 'all dates'}")
+    await _track(
+        context,
+        f"Fetched {total} available slot(s) for {date or 'all dates'}",
+        tool_name="fetch_slots",
+    )
 
     if date:
         return json.dumps({"date": date, "available_times": grouped.get(date, [])})
@@ -270,7 +300,9 @@ async def book_appointment(
     # Mark the slot as booked in the slots table
     await mark_slot_booked(date, time)
 
-    _track(context, f"Booked appointment on {date} at {time}")
+    await _track(
+        context, f"Booked appointment on {date} at {time}", tool_name="book_appointment"
+    )
 
     # Force the agent to speak the confirmation aloud
     await context.session.say(
@@ -311,7 +343,11 @@ async def retrieve_appointments(
             "Let them know and ask if they'd like to book one."
         )
 
-    _track(context, f"Retrieved {len(appointments)} appointment(s)")
+    await _track(
+        context,
+        f"Retrieved {len(appointments)} appointment(s)",
+        tool_name="retrieve_appointments",
+    )
 
     # Format appointments for the LLM to read out
     results = []
@@ -363,7 +399,11 @@ async def cancel_appointment(
     # Free up the slot so others can book it
     await mark_slot_available(date, time)
 
-    _track(context, f"Cancelled appointment on {date} at {time}")
+    await _track(
+        context,
+        f"Cancelled appointment on {date} at {time}",
+        tool_name="cancel_appointment",
+    )
 
     # Force the agent to speak the confirmation aloud
     await context.session.say(
@@ -426,9 +466,10 @@ async def modify_appointment(
     await mark_slot_available(old_date, old_time)
     await mark_slot_booked(new_date, new_time)
 
-    _track(
+    await _track(
         context,
         f"Modified appointment from {old_date} {old_time} to {new_date} {new_time}",
+        tool_name="modify_appointment",
     )
 
     # Force the agent to speak the confirmation aloud
