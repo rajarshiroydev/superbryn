@@ -5,19 +5,83 @@
  *             Shows a processing indicator when the agent is thinking.
  * ------------------------------------------------------------------ */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import type { TranscriptMessage, AgentState } from "@/lib/types";
+import type { TranscriptMessage, AgentState, ToolCallEvent } from "@/lib/types";
 
 interface Props {
   messages: TranscriptMessage[];
+  toolCalls: ToolCallEvent[];
   agentState: AgentState;
 }
 
-export function ChatPanel({ messages, agentState }: Props) {
+const TOOL_META: Record<
+  string,
+  { label: string; icon: string; accent: string }
+> = {
+  identify_user: {
+    label: "User Identified",
+    icon: "\u{1F464}",
+    accent: "purple",
+  },
+  fetch_slots: { label: "Slots Fetched", icon: "\u{1F4C5}", accent: "blue" },
+  book_appointment: {
+    label: "Appointment Booked",
+    icon: "\u2705",
+    accent: "emerald",
+  },
+  retrieve_appointments: {
+    label: "Appointments Retrieved",
+    icon: "\u{1F4CB}",
+    accent: "blue",
+  },
+  cancel_appointment: {
+    label: "Appointment Cancelled",
+    icon: "\u{1F6AB}",
+    accent: "red",
+  },
+  modify_appointment: {
+    label: "Appointment Modified",
+    icon: "\u270F\uFE0F",
+    accent: "amber",
+  },
+  end_conversation: { label: "Call Ended", icon: "\u{1F44B}", accent: "zinc" },
+};
+
+const ACCENT_CLASSES: Record<string, string> = {
+  purple: "bg-purple-500/[0.08] border-purple-500/[0.15] text-purple-300",
+  blue: "bg-blue-500/[0.08] border-blue-500/[0.15] text-blue-300",
+  emerald: "bg-emerald-500/[0.08] border-emerald-500/[0.15] text-emerald-300",
+  red: "bg-red-500/[0.08] border-red-500/[0.15] text-red-300",
+  amber: "bg-amber-500/[0.08] border-amber-500/[0.15] text-amber-300",
+  zinc: "bg-zinc-500/[0.08] border-zinc-500/[0.15] text-zinc-300",
+};
+
+export function ChatPanel({ messages, toolCalls, agentState }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  /* Auto-scroll to bottom on new messages */
+  /* Build a merged timeline of messages and tool-call events */
+  const timeline = useMemo(() => {
+    const items: Array<
+      | { kind: "message"; data: TranscriptMessage; ts: number }
+      | { kind: "tool"; data: ToolCallEvent; ts: number }
+    > = [
+      ...messages.map((m) => ({
+        kind: "message" as const,
+        data: m,
+        ts: m.timestamp,
+      })),
+      ...toolCalls.map((t) => ({
+        kind: "tool" as const,
+        data: t,
+        ts: new Date(t.timestamp).getTime(),
+      })),
+    ];
+    items.sort((a, b) => a.ts - b.ts);
+    return items;
+  }, [messages, toolCalls]);
+
+  /* Auto-scroll to bottom */
   useEffect(() => {
     const el = scrollRef.current;
     if (el) {
@@ -25,15 +89,15 @@ export function ChatPanel({ messages, agentState }: Props) {
         el.scrollTop = el.scrollHeight;
       });
     }
-  }, [messages, agentState]);
+  }, [timeline, agentState]);
 
   return (
     <div
       ref={scrollRef}
-      className="flex-1 overflow-y-auto px-4 py-4 space-y-3 scroll-smooth"
+      className="h-full overflow-y-auto px-4 py-4 space-y-3 scroll-smooth"
     >
       {/* Empty state */}
-      {messages.length === 0 && agentState !== "thinking" && (
+      {timeline.length === 0 && agentState !== "thinking" && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -60,36 +124,73 @@ export function ChatPanel({ messages, agentState }: Props) {
         </motion.div>
       )}
 
-      {/* Message bubbles */}
+      {/* Timeline — messages & tool-call cards */}
       <AnimatePresence initial={false}>
-        {messages.map((msg) => (
-          <motion.div
-            key={msg.id}
-            layout
-            initial={{ opacity: 0, y: 10, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
-            className={`flex ${msg.speaker === "user" ? "justify-end" : "justify-start"}`}
-          >
-            <div
-              className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed transition-opacity duration-300 ${
-                msg.speaker === "user"
-                  ? "bg-accent/[0.12] text-amber-100/90 rounded-br-sm"
-                  : "bg-white/[0.05] text-zinc-300 rounded-bl-sm"
-              } ${!msg.isFinal ? "opacity-60" : "opacity-100"}`}
-            >
-              {/* Speaker label */}
-              <span
-                className={`block text-[10px] font-semibold uppercase tracking-wider mb-1 ${
-                  msg.speaker === "user" ? "text-accent/60" : "text-zinc-500"
-                }`}
+        {timeline.map((item) => {
+          if (item.kind === "message") {
+            const msg = item.data;
+            return (
+              <motion.div
+                key={msg.id}
+                layout
+                initial={{ opacity: 0, y: 10, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className={`flex ${msg.speaker === "user" ? "justify-end" : "justify-start"}`}
               >
-                {msg.speaker === "user" ? "You" : "Bryn"}
-              </span>
-              <p className="font-body">{msg.text}</p>
-            </div>
-          </motion.div>
-        ))}
+                <div
+                  className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed transition-opacity duration-300 ${
+                    msg.speaker === "user"
+                      ? "bg-accent/[0.12] text-amber-100/90 rounded-br-sm"
+                      : "bg-white/[0.05] text-zinc-300 rounded-bl-sm"
+                  } ${!msg.isFinal ? "opacity-60" : "opacity-100"}`}
+                >
+                  <span
+                    className={`block text-[10px] font-semibold uppercase tracking-wider mb-1 ${
+                      msg.speaker === "user"
+                        ? "text-accent/60"
+                        : "text-zinc-500"
+                    }`}
+                  >
+                    {msg.speaker === "user" ? "You" : "Bryn"}
+                  </span>
+                  <p className="font-body">{msg.text}</p>
+                </div>
+              </motion.div>
+            );
+          }
+          const tc = item.data;
+          const meta = TOOL_META[tc.tool] || {
+            label: tc.tool,
+            icon: "\u26A1",
+            accent: "zinc",
+          };
+          const accentCls = ACCENT_CLASSES[meta.accent] || ACCENT_CLASSES.zinc;
+          return (
+            <motion.div
+              key={`tool-${tc.id}`}
+              layout
+              initial={{ opacity: 0, y: 8, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="flex justify-center"
+            >
+              <div
+                className={`inline-flex items-start gap-2.5 max-w-[90%] px-3.5 py-2.5 rounded-xl border text-[12px] font-body ${accentCls}`}
+              >
+                <span className="text-sm leading-none mt-0.5">{meta.icon}</span>
+                <div className="min-w-0">
+                  <span className="font-semibold text-[11px] uppercase tracking-wider block">
+                    {meta.label}
+                  </span>
+                  <span className="text-[11px] opacity-70 leading-snug block mt-0.5">
+                    {tc.action}
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+          );
+        })}
       </AnimatePresence>
 
       {/* -------- Thinking / tool-call indicator -------- */}

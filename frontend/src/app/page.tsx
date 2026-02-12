@@ -26,6 +26,7 @@ import { SummaryPanel } from "@/components/SummaryPanel";
 import { Controls } from "@/components/Controls";
 import { useTranscript } from "@/hooks/useTranscript";
 import { useCallSummary } from "@/hooks/useCallSummary";
+import { useToolCalls } from "@/hooks/useToolCalls";
 
 import type { AgentState, ConnectionPhase, CallSummary } from "@/lib/types";
 
@@ -93,7 +94,7 @@ export default function Home() {
     <AnimatePresence mode="wait">
       <motion.div
         key="room"
-        className="h-screen"
+        className="h-screen overflow-hidden"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.4 }}
@@ -175,11 +176,80 @@ function WelcomeScreen({
 
         {/* Separator */}
         <motion.div
-          className="w-20 h-px bg-gradient-to-r from-transparent via-accent/40 to-transparent mb-14"
+          className="w-20 h-px bg-gradient-to-r from-transparent via-accent/40 to-transparent mb-8"
           initial={{ scaleX: 0 }}
           animate={{ scaleX: 1 }}
           transition={{ delay: 0.45, duration: 0.5 }}
         />
+
+        {/* Tagline */}
+        <motion.h2
+          className="text-2xl md:text-3xl lg:text-4xl font-display text-center text-zinc-200 max-w-xl leading-snug mb-10"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5, duration: 0.6 }}
+        >
+          Book, modify &amp; manage your appointments with a{" "}
+          <span className="bg-gradient-to-r from-accent-light to-accent bg-clip-text text-transparent">
+            natural voice conversation
+          </span>
+        </motion.h2>
+
+        {/* Features */}
+        <motion.div
+          className="grid grid-cols-2 md:grid-cols-3 gap-3 w-full max-w-xl mb-12"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6, duration: 0.5 }}
+        >
+          {[
+            {
+              icon: "\u{1F399}\uFE0F",
+              title: "Voice Conversation",
+              desc: "Natural speech recognition & real-time responses",
+            },
+            {
+              icon: "\u{1F3AD}",
+              title: "Live Avatar",
+              desc: "Lip-synced visual avatar powered by Tavus",
+            },
+            {
+              icon: "\u{1F4C5}",
+              title: "Book Appointments",
+              desc: "Schedule appointments using voice commands",
+            },
+            {
+              icon: "\u{1F527}",
+              title: "Live Tool Calls",
+              desc: "See every action the agent takes in real time",
+            },
+            {
+              icon: "\u{1F4CB}",
+              title: "Call Summary",
+              desc: "Auto-generated recap with appointment details",
+            },
+            {
+              icon: "\u{1F464}",
+              title: "User Recognition",
+              desc: "Identifies returning users by phone number",
+            },
+          ].map((f) => (
+            <div
+              key={f.title}
+              className="flex items-start gap-2.5 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.05] transition-colors duration-300"
+            >
+              <span className="text-base mt-0.5 shrink-0">{f.icon}</span>
+              <div>
+                <h3 className="text-xs font-semibold text-zinc-200 font-body">
+                  {f.title}
+                </h3>
+                <p className="text-[10px] text-zinc-500 font-body leading-snug mt-0.5">
+                  {f.desc}
+                </p>
+              </div>
+            </div>
+          ))}
+        </motion.div>
 
         {/* CTA */}
         <motion.button
@@ -188,7 +258,7 @@ function WelcomeScreen({
           className="group relative"
           initial={{ opacity: 0, scale: 0.85 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.55 }}
+          transition={{ delay: 0.7 }}
           whileHover={{ scale: 1.06 }}
           whileTap={{ scale: 0.97 }}
         >
@@ -252,17 +322,6 @@ function WelcomeScreen({
             </motion.p>
           )}
         </AnimatePresence>
-
-        {/* Tagline */}
-        <motion.p
-          className="mt-14 text-[11px] text-zinc-600 max-w-xs text-center leading-relaxed font-body"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.75 }}
-        >
-          Book, modify, and manage your appointments with a natural voice
-          conversation
-        </motion.p>
       </motion.div>
     </div>
   );
@@ -284,6 +343,7 @@ function RoomContent({
   const [activeTab, setActiveTab] = useState<"chat" | "summary">("chat");
   const transcript = useTranscript();
   const summary = useCallSummary();
+  const toolCalls = useToolCalls();
   const connectionState = useConnectionState();
 
   /* Track disconnection */
@@ -391,7 +451,11 @@ function RoomContent({
                 exit={{ opacity: 0, x: -8 }}
                 transition={{ duration: 0.2 }}
               >
-                <ChatPanel messages={transcript} agentState={agentState} />
+                <ChatPanel
+                  messages={transcript}
+                  toolCalls={toolCalls}
+                  agentState={agentState}
+                />
               </motion.div>
             ) : (
               <motion.div

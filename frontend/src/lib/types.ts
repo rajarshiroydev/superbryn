@@ -28,6 +28,14 @@ export interface AppointmentAction {
   details: string;
 }
 
+export interface ToolCallEvent {
+  id: string;
+  type: "tool_call";
+  tool: string;
+  action: string;
+  timestamp: string;
+}
+
 export type AgentState =
   | "disconnected"
   | "connecting"

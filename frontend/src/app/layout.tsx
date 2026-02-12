@@ -28,7 +28,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${displayFont.variable} ${bodyFont.variable}`}>
-      <body className="font-body antialiased bg-obsidian text-white min-h-screen overflow-hidden">
+      <body className="font-body antialiased bg-obsidian text-white min-h-screen">
         <div className="grain" aria-hidden="true" />
         {children}
       </body>

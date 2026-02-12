@@ -93,23 +93,34 @@ export function SummaryPanel({ summary }: Props) {
 
                 {/* Date/time details */}
                 <div className="text-[13px] text-zinc-300 font-body">
-                  {appt.date && <span>{appt.date}</span>}
-                  {appt.time && (
-                    <span className="text-zinc-400"> at {appt.time}</span>
-                  )}
-                  {appt.new_date && appt.new_time && (
-                    <span className="text-blue-400">
-                      {" "}
-                      → {appt.new_date} at {appt.new_time}
-                    </span>
-                  )}
+                  {appt.date &&
+                    appt.date !== "none" &&
+                    appt.date !== "null" && <span>{appt.date}</span>}
+                  {appt.time &&
+                    appt.time !== "none" &&
+                    appt.time !== "null" && (
+                      <span className="text-zinc-400"> at {appt.time}</span>
+                    )}
+                  {appt.new_date &&
+                    appt.new_date !== "none" &&
+                    appt.new_date !== "null" &&
+                    appt.new_time &&
+                    appt.new_time !== "none" &&
+                    appt.new_time !== "null" && (
+                      <span className="text-blue-400">
+                        {" "}
+                        → {appt.new_date} at {appt.new_time}
+                      </span>
+                    )}
                 </div>
 
-                {appt.details && (
-                  <p className="text-[11px] text-zinc-500 mt-1 font-body">
-                    {appt.details}
-                  </p>
-                )}
+                {appt.details &&
+                  appt.details !== "none" &&
+                  appt.details !== "null" && (
+                    <p className="text-[11px] text-zinc-500 mt-1 font-body">
+                      {appt.details}
+                    </p>
+                  )}
               </motion.div>
             ))}
           </div>
