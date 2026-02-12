@@ -1,8 +1,9 @@
 from dotenv import load_dotenv
 import os
+import logging
 from livekit import agents, rtc
 from livekit.agents import AgentServer, AgentSession, Agent, room_io
-from livekit.plugins import noise_cancellation, silero, groq, tavus, deepgram, cartesia
+from livekit.plugins import noise_cancellation, silero, groq, tavus, cartesia
 
 from tools import (
     identify_user,
@@ -15,6 +16,8 @@ from tools import (
 )
 
 load_dotenv()
+
+logger = logging.getLogger("super-bryn-agent")
 
 
 class Assistant(Agent):
@@ -55,43 +58,58 @@ server = AgentServer(num_idle_processes=0)
 
 @server.rtc_session()
 async def my_agent(ctx: agents.JobContext):
-    session = AgentSession(
-        stt=groq.STT(model="whisper-large-v3-turbo", language="en"),
-        llm=groq.LLM(model="moonshotai/kimi-k2-instruct-0905"),
-        tts=cartesia.TTS(
-            model="sonic-2",
-            voice="9626c31c-bec5-4cca-baa8-f8ba9e84c8bc",
-            api_key=os.getenv("CARTESIA_API_KEY"),
-        ),
-        vad=silero.VAD.load(),
-        userdata={"current_user": None, "phone_number": None, "tool_calls": []},
-    )
+    logger.info("Agent job received — setting up session...")
 
-    avatar = tavus.AvatarSession(
-        replica_id=os.getenv("TAVUS_REPLICA_ID") or "",
-        persona_id=os.getenv("TAVUS_PERSONA_ID") or "",
-    )
+    cartesia_key = os.getenv("CARTESIA_API_KEY")
+    if not cartesia_key:
+        logger.error("CARTESIA_API_KEY is not set!")
+        raise RuntimeError("CARTESIA_API_KEY environment variable is not set")
 
-    await avatar.start(session, room=ctx.room)
+    try:
+        session = AgentSession(
+            stt=groq.STT(model="whisper-large-v3-turbo", language="en"),
+            llm=groq.LLM(model="moonshotai/kimi-k2-instruct-0905"),
+            tts=cartesia.TTS(
+                model="sonic-2",
+                voice="9626c31c-bec5-4cca-baa8-f8ba9e84c8bc",
+                api_key=cartesia_key,
+            ),
+            vad=silero.VAD.load(),
+            userdata={"current_user": None, "phone_number": None, "tool_calls": []},
+        )
+        logger.info("AgentSession created successfully")
 
-    await session.start(
-        room=ctx.room,
-        agent=Assistant(),
-        room_options=room_io.RoomOptions(
-            audio_input=room_io.AudioInputOptions(
-                noise_cancellation=lambda params: (
-                    noise_cancellation.BVCTelephony()
-                    if params.participant.kind
-                    == rtc.ParticipantKind.PARTICIPANT_KIND_SIP
-                    else noise_cancellation.BVC()
+        avatar = tavus.AvatarSession(
+            replica_id=os.getenv("TAVUS_REPLICA_ID") or "",
+            persona_id=os.getenv("TAVUS_PERSONA_ID") or "",
+        )
+
+        logger.info("Starting Tavus avatar...")
+        await avatar.start(session, room=ctx.room)
+        logger.info("Tavus avatar started")
+
+        await session.start(
+            room=ctx.room,
+            agent=Assistant(),
+            room_options=room_io.RoomOptions(
+                audio_input=room_io.AudioInputOptions(
+                    noise_cancellation=lambda params: (
+                        noise_cancellation.BVCTelephony()
+                        if params.participant.kind
+                        == rtc.ParticipantKind.PARTICIPANT_KIND_SIP
+                        else noise_cancellation.BVC()
+                    ),
                 ),
             ),
-        ),
-    )
+        )
+        logger.info("Session started, generating greeting...")
 
-    await session.generate_reply(
-        instructions="Greet the user and offer your assistance. Make sure to speak only English."
-    )
+        await session.generate_reply(
+            instructions="Greet the user and offer your assistance. Make sure to speak only English."
+        )
+    except Exception as e:
+        logger.exception(f"Agent setup failed: {e}")
+        raise
 
 
 if __name__ == "__main__":
